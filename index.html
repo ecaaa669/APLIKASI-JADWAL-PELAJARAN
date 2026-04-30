@@ -3,228 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Jadwal Pelajaran</title>
+    <title>Jadwal Pelajaran Online - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* === BAGIAN CSS (TAMPILAN) === */
-        * { box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background-color: #f0f2f5; 
-            color: #333;
-        }
-        .container { 
-            max-width: 900px; 
-            margin: auto; 
-            background: white; 
-            padding: 25px; 
-            border-radius: 10px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
-        }
-        h1, h2 { text-align: center; color: #1a73e8; }
-        
-        /* Desain Form */
-        form { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 15px; 
-            margin-bottom: 30px; 
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-        }
-        .form-group { display: flex; flex-direction: column; }
-        .form-group.full-width { grid-column: span 2; }
-        label { font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-        input, select { 
-            padding: 10px; 
-            font-size: 14px; 
-            border: 1px solid #ccc; 
-            border-radius: 5px; 
-            outline: none;
-        }
-        input:focus, select:focus { border-color: #1a73e8; }
-        button[type="submit"] { 
-            background-color: #1a73e8; 
-            color: white; 
-            border: none; 
-            cursor: pointer; 
-            padding: 12px; 
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 5px; 
-            transition: background 0.3s;
-        }
-        button[type="submit"]:hover { background-color: #1557b0; }
-
-        /* Desain Tabel */
-        .table-responsive { overflow-x: auto; }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px; 
-        }
-        th, td { 
-            border: 1px solid #ddd; 
-            padding: 12px; 
-            text-align: center; 
-        }
-        th { background-color: #1a73e8; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #f1f1f1; }
-        
-        /* Tombol Hapus */
-        .btn-delete { 
-            background-color: #dc3545; 
-            color: white; 
-            border: none; 
-            padding: 8px 12px; 
-            cursor: pointer; 
-            border-radius: 4px; 
-            font-weight: bold;
-        }
-        .btn-delete:hover { background-color: #c82333; }
-        
-        /* Responsif untuk HP */
-        @media (max-width: 600px) {
-            form { grid-template-columns: 1fr; }
-            .form-group.full-width { grid-column: span 1; }
-        }
+        /* CSS tetap sama seperti sebelumnya */
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        input, select, button { padding: 10px; border-radius: 4px; border: 1px solid #ddd; }
+        button { background: #3ecf8e; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #34b27b; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #3ecf8e; color: white; }
+        .loading { text-align: center; color: #666; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>📚 Aplikasi Jadwal Pelajaran</h1>
+<div class="container">
+    <h1>📅 Jadwal Pelajaran (Cloud Sync)</h1>
+    
+    <form id="jadwalForm">
+        <select id="hari" required>
+            <option value="">Pilih Hari...</option>
+            <option value="Senin">Senin</option>
+            <option value="Selasa">Selasa</option>
+            <option value="Rabu">Rabu</option>
+            <option value="Kamis">Kamis</option>
+            <option value="Jumat">Jumat</option>
+            <option value="Sabtu">Sabtu</option>
+        </select>
+        <input type="text" id="mapel" placeholder="Mata Pelajaran" required>
+        <input type="time" id="jamMulai" required>
+        <input type="time" id="jamSelesai" required>
+        <input type="text" id="guru" placeholder="Guru/Dosen" required>
+        <input type="text" id="ruangan" placeholder="Ruangan" required>
+        <button type="submit" style="grid-column: span 2;">Simpan ke Cloud</button>
+    </form>
+
+    <div id="status" class="loading">Menghubungkan ke database...</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Hari</th>
+                <th>Waktu</th>
+                <th>Mapel</th>
+                <th>Guru</th>
+                <th>Ruangan</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    // === KONFIGURASI SUPABASE ===
+    // GANTI DENGAN MILIK ANDA SENDIRI!
+    const SUPABASE_URL = 'URL_PROJECT_ANDA_DI_SINI';
+    const SUPABASE_KEY = 'ANON_KEY_ANDA_DI_SINI';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const form = document.getElementById('jadwalForm');
+    const tableBody = document.getElementById('tableBody');
+    const statusText = document.getElementById('status');
+
+    // 1. Fungsi Mengambil Data dari Supabase
+    async function fetchJadwal() {
+        statusText.innerText = "Memperbarui data...";
         
-        <form id="jadwalForm">
-            <div class="form-group">
-                <label for="hari">Hari</label>
-                <select id="hari" required>
-                    <option value="" disabled selected>Pilih Hari...</option>
-                    <option value="Senin">Senin</option>
-                    <option value="Selasa">Selasa</option>
-                    <option value="Rabu">Rabu</option>
-                    <option value="Kamis">Kamis</option>
-                    <option value="Jumat">Jumat</option>
-                    <option value="Sabtu">Sabtu</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="mapel">Mata Pelajaran</label>
-                <input type="text" id="mapel" required placeholder="Contoh: Matematika">
-            </div>
-            <div class="form-group">
-                <label for="jamMulai">Jam Mulai</label>
-                <input type="time" id="jamMulai" required>
-            </div>
-            <div class="form-group">
-                <label for="jamSelesai">Jam Selesai</label>
-                <input type="time" id="jamSelesai" required>
-            </div>
-            <div class="form-group">
-                <label for="guru">Nama Guru/Dosen</label>
-                <input type="text" id="guru" required placeholder="Contoh: Bpk. Budi Santoso">
-            </div>
-            <div class="form-group">
-                <label for="ruangan">Ruangan</label>
-                <input type="text" id="ruangan" required placeholder="Contoh: Lab Komputer 1">
-            </div>
-            <div class="form-group full-width">
-                <button type="submit">➕ Tambah Jadwal</button>
-            </div>
-        </form>
+        let { data: jadwal, error } = await _supabase
+            .from('jadwal')
+            .select('*')
+            .order('id', { ascending: true });
 
-        <h2>📅 Daftar Jadwal Anda</h2>
-        <div class="table-responsive">
-            <table id="jadwalTable">
-                <thead>
-                    <tr>
-                        <th>Hari</th>
-                        <th>Waktu</th>
-                        <th>Mata Pelajaran</th>
-                        <th>Guru/Dosen</th>
-                        <th>Ruangan</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
-        // 1. Ambil data dari Local Storage (jika kosong, buat array kosong)
-        let jadwalData = JSON.parse(localStorage.getItem('jadwalPelajaran')) || [];
-
-        // Referensi urutan hari agar tabel tersusun rapi dari Senin - Sabtu
-        const urutanHari = { "Senin": 1, "Selasa": 2, "Rabu": 3, "Kamis": 4, "Jumat": 5, "Sabtu": 6 };
-
-        // 2. Fungsi untuk menampilkan data ke dalam tabel
-        function tampilkanJadwal() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = ''; // Bersihkan tabel sebelum diisi ulang
-
-            // Urutkan jadwal berdasarkan Hari, lalu Jam Mulai
-            jadwalData.sort((a, b) => {
-                if (urutanHari[a.hari] !== urutanHari[b.hari]) {
-                    return urutanHari[a.hari] - urutanHari[b.hari];
-                }
-                return a.jamMulai.localeCompare(b.jamMulai);
-            });
-
-            // Looping data dan masukkan ke tabel
-            jadwalData.forEach((jadwal, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${jadwal.hari}</strong></td>
-                    <td>${jadwal.jamMulai} - ${jadwal.jamSelesai}</td>
-                    <td>${jadwal.mapel}</td>
-                    <td>${jadwal.guru}</td>
-                    <td>${jadwal.ruangan}</td>
-                    <td><button class="btn-delete" onclick="hapusJadwal(${index})">🗑️ Hapus</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
+        if (error) {
+            console.error(error);
+            statusText.innerText = "Gagal mengambil data.";
+        } else {
+            statusText.innerText = "";
+            renderTable(jadwal);
         }
+    }
 
-        // 3. Fungsi ketika tombol "Tambah Jadwal" di-klik
-        document.getElementById('jadwalForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Mencegah halaman reload
-            
-            // Ambil nilai dari form
-            const jadwalBaru = {
-                hari: document.getElementById('hari').value,
-                mapel: document.getElementById('mapel').value,
-                jamMulai: document.getElementById('jamMulai').value,
-                jamSelesai: document.getElementById('jamSelesai').value,
-                guru: document.getElementById('guru').value,
-                ruangan: document.getElementById('ruangan').value
-            };
-
-            // Masukkan ke array, simpan ke Local Storage, reset form, dan tampilkan ulang
-            jadwalData.push(jadwalBaru);
-            localStorage.setItem('jadwalPelajaran', JSON.stringify(jadwalData));
-            
-            this.reset();
-            tampilkanJadwal();
+    // 2. Menampilkan Data ke Tabel
+    function renderTable(data) {
+        tableBody.innerHTML = '';
+        data.forEach((item) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.hari}</td>
+                <td>${item.jam_mulai} - ${item.jam_selesai}</td>
+                <td>${item.mapel}</td>
+                <td>${item.guru}</td>
+                <td>${item.ruangan}</td>
+                <td><button onclick="deleteJadwal(${item.id})" style="background:#ff4d4d; padding:5px 10px;">Hapus</button></td>
+            `;
+            tableBody.appendChild(tr);
         });
+    }
 
-        // 4. Fungsi untuk menghapus jadwal
-        function hapusJadwal(index) {
-            if(confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
-                jadwalData.splice(index, 1); // Hapus 1 data dari array
-                localStorage.setItem('jadwalPelajaran', JSON.stringify(jadwalData)); // Update Local Storage
-                tampilkanJadwal(); // Tampilkan ulang tabel
-            }
+    // 3. Menambah Data Baru ke Supabase
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button');
+        btn.disabled = true;
+        btn.innerText = "Menyimpan...";
+
+        const newData = {
+            hari: document.getElementById('hari').value,
+            mapel: document.getElementById('mapel').value,
+            jam_mulai: document.getElementById('jamMulai').value,
+            jam_selesai: document.getElementById('jamSelesai').value,
+            guru: document.getElementById('guru').value,
+            ruangan: document.getElementById('ruangan').value
+        };
+
+        const { error } = await _supabase.from('jadwal').insert([newData]);
+
+        if (error) {
+            alert("Gagal menyimpan data: " + error.message);
+        } else {
+            form.reset();
+            fetchJadwal();
         }
+        btn.disabled = false;
+        btn.innerText = "Simpan ke Cloud";
+    });
 
-        // 5. Panggil fungsi tampilkanJadwal saat halaman pertama kali dibuka
-        tampilkanJadwal();
-    </script>
+    // 4. Menghapus Data dari Supabase
+    async function deleteJadwal(id) {
+        if(confirm("Hapus jadwal ini secara permanen?")) {
+            const { error } = await _supabase.from('jadwal').delete().eq('id', id);
+            if (error) alert("Gagal menghapus");
+            else fetchJadwal();
+        }
+    }
+
+    // Jalankan saat pertama kali dibuka
+    fetchJadwal();
+</script>
 
 </body>
 </html>
